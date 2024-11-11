@@ -3,12 +3,9 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 import pytest
-import sys
-from ssl import SSLContext
-import importlib.metadata
-import importlib_metadata
 from unittest.mock import patch, MagicMock
-
+from ssl import SSLContext
+import sys
 from httpie.compat import (
     is_windows,
     is_frozen,
@@ -18,85 +15,108 @@ from httpie.compat import (
     find_entry_points,
     get_dist_name,
     ensure_default_certs_loaded,
+    importlib_metadata
 )
 
-@pytest.fixture(scope="module")
-def ssl_context():
-    return SSLContext()
+# Setup and teardown functions if needed
+
+
+@pytest.fixture(scope="function")
+def setup_ssl_context():
+    context = SSLContext()
+    yield context
+    # No specific teardown needed, but could be used to reset changes to context
+
+
+# Test cases
 
 def test_is_windows():
-    assert isinstance(is_windows, bool)
+    """Test if is_windows reflects the current OS correctly."""
+    assert is_windows == ('win32' in sys.platform.lower())
+
 
 def test_is_frozen():
-    assert isinstance(is_frozen, bool)
+    """Test if is_frozen reflects the sys.frozen flag correctly."""
+    assert is_frozen == hasattr(sys, 'frozen')
 
-def test_min_supported_py_version():
-    assert MIN_SUPPORTED_PY_VERSION <= sys.version_info
 
-def test_max_supported_py_version():
-    assert MAX_SUPPORTED_PY_VERSION >= sys.version_info
+@pytest.mark.parametrize("py_version, expected", [
+    ((3, 6), False),
+    ((3, 7), True),
+    ((3, 9), True),
+    ((3, 12), False),
+])
+def test_py_version_support(py_version, expected):
+    """Test if the Python version is correctly identified as supported or not."""
+    result = MIN_SUPPORTED_PY_VERSION <= py_version <= MAX_SUPPORTED_PY_VERSION
+    assert result is expected
 
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="cached_property exists in Python 3.8+")
-def test_cached_property_exists():
-    assert hasattr(cached_property, '__get__')
 
-def test_cached_property_functionality():
-    class Test:
+def test_cached_property():
+    """Test the cached_property decorator for expected behavior."""
+    class TestClass:
         def __init__(self, value):
             self._value = value
-        
+
         @cached_property
         def value(self):
             return self._value
-    
-    t = Test(5)
-    assert t.value == 5
 
-def test_find_entry_points_normal_case():
-    entry_points = MagicMock()
-    entry_points.select = MagicMock(return_value=["entry1", "entry2"])
-    result = find_entry_points(entry_points, "group")
-    assert len(result) == 2
+    instance = TestClass(10)
+    assert instance.value == 10
 
-@pytest.mark.skipif(sys.version_info < (3, 10), reason="select method available in Python 3.10+ or importlib_metadata >= 3.9.0")
-def test_find_entry_points_select_method():
-    with patch("importlib.metadata.EntryPoint.select", return_value=["entry1"], create=True):
-        entry_points = importlib.metadata.entry_points()
-        result = list(find_entry_points(entry_points, "console_scripts"))
-        assert len(result) >= 1  # assuming there's at least one console_script entry point in the environment
 
-@pytest.mark.parametrize("version_info,expected_import", [
-    ((3, 8), "importlib.metadata"),
-    ((3, 7), "importlib_metadata"),
-])
-def test_importlib_metadata_import(version_info, expected_import):
-    with patch("sys.version_info", version_info):
-        if version_info >= (3, 8):
-            import importlib.metadata as importlib_metadata
-        else:
-            import importlib_metadata
-        assert importlib_metadata.__name__ in expected_import
+def test_cached_property_error_without_set_name():
+    """Test that accessing cached property without __set_name__ being called raises error."""
+    with pytest.raises(TypeError):
+        class TestClass:
+            @cached_property
+            def broken_property(self):
+                return "This should not work"
 
-def test_get_dist_name_found(monkeypatch):
+            broken_property.__get__(None)
+
+
+@patch("httpie.compat.importlib_metadata")
+def test_find_entry_points(mock_metadata):
+    """Test if find_entry_points selects the correct entry points."""
+    mock_metadata.EntryPoint = MagicMock()
+    mock_entry_points = MagicMock()
+    mock_entry_points.select.return_value = {"test": "entry_point"}
+    result = find_entry_points(mock_entry_points, "test")
+    assert "test" in result
+
+
+@patch("httpie.compat.importlib_metadata")
+def test_get_dist_name_found(mock_metadata):
+    """Test if get_dist_name correctly finds the distribution name."""
     entry_point = MagicMock()
-    entry_point.dist = MagicMock()
-    entry_point.dist.name = "package_name"
-    assert get_dist_name(entry_point) == "package_name"
+    entry_point.dist = MagicMock(name="test_dist")
+    result = get_dist_name(entry_point)
+    assert result == "test_dist"
 
-def test_get_dist_name_not_found(monkeypatch):
+
+@patch("httpie.compat.importlib_metadata")
+def test_get_dist_name_not_found(mock_metadata):
+    """Test if get_dist_name returns None when distribution is not found."""
     entry_point = MagicMock()
     entry_point.dist = None
-    monkeypatch.setattr(importlib_metadata, "metadata", MagicMock(side_effect=importlib_metadata.PackageNotFoundError))
-    assert get_dist_name(entry_point) is None
+    result = get_dist_name(entry_point)
+    assert result is None
 
-def test_ensure_default_certs_loaded_not_loaded(ssl_context):
-    ssl_context.load_default_certs = MagicMock()
-    ssl_context.get_ca_certs = MagicMock(return_value=[])
-    ensure_default_certs_loaded(ssl_context)
-    ssl_context.load_default_certs.assert_called_once()
 
-def test_ensure_default_certs_loaded_already_loaded(ssl_context):
-    ssl_context.load_default_certs = MagicMock()
-    ssl_context.get_ca_certs = MagicMock(return_value=["cert"])
+@pytest.mark.parametrize("has_load_default_certs, ca_certs", [
+    (True, []),
+    (True, ['cert']),
+    (False, []),
+])
+def test_ensure_default_certs_loaded(setup_ssl_context, has_load_default_certs, ca_certs):
+    """Test ensure_default_certs_loaded under different conditions."""
+    ssl_context = setup_ssl_context
+    ssl_context.load_default_certs = MagicMock() if has_load_default_certs else None
+    ssl_context.get_ca_certs = MagicMock(return_value=ca_certs)
     ensure_default_certs_loaded(ssl_context)
-    ssl_context.load_default_certs.assert_not_called()
+    if has_load_default_certs and not ca_certs:
+        ssl_context.load_default_certs.assert_called_once()
+    else:
+        assert not hasattr(ssl_context, "load_default_certs") or ssl_context.load_default_certs.call_count == 0

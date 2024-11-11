@@ -37,3 +37,112 @@ E   ModuleNotFoundError: No module named 'importlib_metadata'
 ERROR generated_tests/python/test_compat.py
 !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
 =============================== 1 error in 0.14s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.8.18, pytest-8.3.3, pluggy-1.5.0
+rootdir: /home/runner/work/cli/cli
+configfile: pytest.ini
+plugins: cov-5.0.0
+collected 0 items
+WARNING: Failed to generate report: No data to report.
+
+
+
+---------- coverage: platform linux, python 3.8.18-final-0 -----------
+
+============================ no tests ran in 0.03s =============================
+============================= test session starts ==============================
+platform linux -- Python 3.8.18, pytest-8.3.3, pluggy-1.5.0
+rootdir: /home/runner/work/cli/cli
+configfile: pytest.ini
+plugins: cov-5.0.0
+collected 14 items
+
+generated_tests/python/test_compat.py .......F.FF..F                     [100%]
+
+=================================== FAILURES ===================================
+_________________ test_cached_property_error_without_set_name __________________
+
+    def test_cached_property_error_without_set_name():
+        """Test that accessing cached property without __set_name__ being called raises error."""
+        with pytest.raises(TypeError):
+>           class TestClass:
+E           Failed: DID NOT RAISE <class 'TypeError'>
+
+generated_tests/python/test_compat.py:72: Failed
+___________________________ test_get_dist_name_found ___________________________
+
+mock_metadata = <MagicMock name='importlib_metadata' id='140333596977712'>
+
+    @patch("httpie.compat.importlib_metadata")
+    def test_get_dist_name_found(mock_metadata):
+        """Test if get_dist_name correctly finds the distribution name."""
+        entry_point = MagicMock()
+        entry_point.dist = MagicMock(name="test_dist")
+        result = get_dist_name(entry_point)
+>       assert result == "test_dist"
+E       AssertionError: assert <MagicMock name='test_dist.name' id='140333596579536'> == 'test_dist'
+
+generated_tests/python/test_compat.py:96: AssertionError
+_________________________ test_get_dist_name_not_found _________________________
+
+mock_metadata = <MagicMock name='importlib_metadata' id='140333596667328'>
+
+    @patch("httpie.compat.importlib_metadata")
+    def test_get_dist_name_not_found(mock_metadata):
+        """Test if get_dist_name returns None when distribution is not found."""
+        entry_point = MagicMock()
+        entry_point.dist = None
+        result = get_dist_name(entry_point)
+>       assert result is None
+E       AssertionError: assert <MagicMock name='importlib_metadata.metadata().get()' id='140333599594912'> is None
+
+generated_tests/python/test_compat.py:105: AssertionError
+______________ test_ensure_default_certs_loaded[False-ca_certs2] _______________
+
+setup_ssl_context = <ssl.SSLContext object at 0x7fa1f6328f40>
+has_load_default_certs = False, ca_certs = []
+
+    @pytest.mark.parametrize("has_load_default_certs, ca_certs", [
+        (True, []),
+        (True, ['cert']),
+        (False, []),
+    ])
+    def test_ensure_default_certs_loaded(setup_ssl_context, has_load_default_certs, ca_certs):
+        """Test ensure_default_certs_loaded under different conditions."""
+        ssl_context = setup_ssl_context
+        ssl_context.load_default_certs = MagicMock() if has_load_default_certs else None
+        ssl_context.get_ca_certs = MagicMock(return_value=ca_certs)
+>       ensure_default_certs_loaded(ssl_context)
+
+generated_tests/python/test_compat.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+ssl_context = <ssl.SSLContext object at 0x7fa1f6328f40>
+
+    def ensure_default_certs_loaded(ssl_context: SSLContext) -> None:
+        """
+        Workaround for a bug in Requests 2.32.3
+    
+        See <https://github.com/httpie/cli/issues/1583>
+    
+        """
+        if hasattr(ssl_context, 'load_default_certs'):
+            if not ssl_context.get_ca_certs():
+>               ssl_context.load_default_certs()
+E               TypeError: 'NoneType' object is not callable
+
+httpie/compat.py:113: TypeError
+
+---------- coverage: platform linux, python 3.8.18-final-0 -----------
+Name               Stmts   Miss  Cover   Missing
+------------------------------------------------
+httpie/compat.py      56     25    55%   22-67, 76, 83, 93, 98-99
+------------------------------------------------
+TOTAL                 56     25    55%
+
+=========================== short test summary info ============================
+FAILED generated_tests/python/test_compat.py::test_cached_property_error_without_set_name - Failed: DID NOT RAISE <class 'TypeError'>
+FAILED generated_tests/python/test_compat.py::test_get_dist_name_found - AssertionError: assert <MagicMock name='test_dist.name' id='140333596579536'> == 'test_dist'
+FAILED generated_tests/python/test_compat.py::test_get_dist_name_not_found - AssertionError: assert <MagicMock name='importlib_metadata.metadata().get()' id='140333599594912'> is None
+FAILED generated_tests/python/test_compat.py::test_ensure_default_certs_loaded[False-ca_certs2] - TypeError: 'NoneType' object is not callable
+========================= 4 failed, 10 passed in 0.13s =========================
