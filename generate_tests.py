@@ -193,6 +193,7 @@ class TestGenerator:
        
  
  def generate_coverage_report(self, file_name: str, test_file: Path, language: str):
+    logging.info("got to generate coverage report function")
     """Generate a code coverage report, send it to OpenAI for analysis, and save it as a text file."""
     report_file = test_file.parent / f"{test_file.stem}_coverage_report.txt"
     if language == "Python":
@@ -216,6 +217,7 @@ class TestGenerator:
                 check=True,
                 text=True
             ).stdout
+            logging.info("initial coverage report was made")
         elif language == "JavaScript":
             # Example for JavaScript - replace with the specific coverage tool and command
             coverage_output = subprocess.run(
@@ -227,17 +229,21 @@ class TestGenerator:
             ).stdout
 
         # Send the coverage report to OpenAI
+        logging.info("about to send report to openai")
         prompt = f"""Here is the code coverage report:
 {coverage_output}
 Is there anything missing that I need to install to run this test? If yes, please respond with only the exact command to install the missing dependency. If nothing is needed, respond with NA."""
         response = self.call_openai_api(prompt)
+        logging.info("recieved response from openai")
         
         if response == "NA":
+            logging.info("no need to install")
             # Save the coverage output to the report file if no installation is needed
             with open(report_file, "a") as f:
                 f.write(coverage_output)
             logging.info(f"Code coverage report saved to {report_file}")
         elif response:
+            logging.info(f"going to install, this was the response: {res}")
             # Install the missing package(s) and re-run the coverage report
             subprocess.run(response, shell=True, check=True)
             if language == "Python":
