@@ -231,7 +231,6 @@ class TestGenerator:
             raise ValueError("Unsupported language for coverage report")
     except subprocess.CalledProcessError as e:
         logging.error(f"Error during test execution: {e.stderr}")
-        return
 
     logging.info(f"Coverage output: {coverage_output[:500]}")  # Log first 500 chars for brevity
 
