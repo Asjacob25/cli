@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from requests.exceptions import RequestException
 from typing import List, Optional, Dict, Any
+import re
 
 # Set up logging
 logging.basicConfig(
@@ -192,44 +193,96 @@ class TestGenerator:
        
        
  
- def generate_coverage_report(self, file_name:str, test_file: Path, language: str):
-       """Generate a code coverage report and save it as a text file."""
-       report_file = test_file.parent / f"{test_file.stem}_coverage_report.txt"
-       if language == "Python":
-          # Get the full path of the base file and replace slashes with dots
-          current_path = str(os.path.dirname(os.path.abspath(__file__)))  + "/"
-          base_name = Path(file_name).resolve()
+ def install_missing_modules(modules):
+    """Install missing modules based on the names provided."""
+    for module in modules:
+        try:
+            print(f"Installing missing module: {module}")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", module])
+            print(f"Module {module} installed successfully.")
+        except subprocess.CalledProcessError as e:
+            print(f"Error installing module {module}: {e}")
+            raise
 
-          base_name = str(base_name).replace(current_path,'').replace('/', '.')
-          
-          base_name = base_name.replace(file_name,"").replace(".py","") #if (base_name) should still have .
-          if (base_name==""):
-              base_name="."
-       else:
-          # For other languages, the base_name remains the stem of the file
-          base_name = Path(file_name).stem
+ def run_coverage_report(test_file, base_name, language):
+    """Run pytest (for Python) or other coverage tool and capture output."""
+    try:
+        if language == "Python":
+            result = subprocess.run(
+                ["pytest", str(test_file), "--cov=" + str(base_name), "--cov-report=term-missing"],
+                capture_output=True, text=True
+            )
+            return result.stdout
+        elif language == "JavaScript":
+            # Example for JavaScript - replace with the specific coverage tool and command
+            result = subprocess.run(
+                ["jest", "--coverage", "--config=path/to/jest.config.js"],
+                capture_output=True, text=True
+            )
+            return result.stdout
+        # Add more cases for other languages here
+        else:
+            raise ValueError(f"Unsupported language: {language}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error running coverage report: {e}")
+        raise
 
-       try:
-           # Run tests with coverage based on language
-           if language == "Python":
-               subprocess.run(
-                   ["pytest", str(test_file), "--cov="+str(base_name), "--cov-report=term-missing"],
-                   stdout=open(report_file, "a"),
-                   check=True
-               )
-           elif language == "JavaScript":
-               # Example for JavaScript - replace with the specific coverage tool and command
-               subprocess.run(
-                   ["jest", "--coverage", "--config=path/to/jest.config.js"],
-                   stdout=open(report_file, "a"),
-                   check=True
-               )
-           # Add additional commands for other languages here
+ def extract_missing_modules(coverage_report):
+    """Extract module names that caused 'ModuleNotFoundError' from the coverage report."""
+    missing_modules = []
+    # Look for "ModuleNotFoundError" and capture the module name from the error message
+    pattern = re.compile(r"ModuleNotFoundError: No module named '([^']+)'")
+    matches = pattern.findall(coverage_report)
+    missing_modules.extend(matches)
+    return missing_modules
 
-           logging.info(f"Code coverage report saved to {report_file}")
+ def handle_coverage_report(coverage_report):
+    """Handle the coverage report: Install missing dependencies if needed and rerun coverage."""
+    missing_modules = extract_missing_modules(coverage_report)
+    
+    if missing_modules:
+        print("Missing modules detected:", missing_modules)
+        install_missing_modules(missing_modules)
+        print("Rerunning the coverage report after installing missing modules...")
+        return run_coverage_report()
+    else:
+        # If no missing modules, return the original coverage report
+        return coverage_report
 
-       except subprocess.CalledProcessError as e:
-           logging.error(f"Error generating coverage report for {test_file}: {e}")
+ def generate_coverage_report(self, file_name: str, test_file: Path, language: str):
+    """Generate a code coverage report and save it as a text file."""
+    report_file = test_file.parent / f"{test_file.stem}_coverage_report.txt"
+    
+    # Get base name based on language
+    if language == "Python":
+        # Get the full path of the base file and replace slashes with dots
+        current_path = str(os.path.dirname(os.path.abspath(__file__))) + "/"
+        base_name = Path(file_name).resolve()
+
+        base_name = str(base_name).replace(current_path, '').replace('/', '.')
+
+        base_name = base_name.replace(file_name, "").replace(".py", "")  # If base_name should still have "."
+        if not base_name:
+            base_name = "."
+    else:
+        # For other languages, the base_name remains the stem of the file
+        base_name = Path(file_name).stem
+
+    try:
+        # Run the coverage report and get the output
+        coverage_report = run_coverage_report(test_file, base_name, language)
+
+        # Handle missing modules and rerun coverage if necessary
+        handled_report = handle_coverage_report(coverage_report)
+
+        # Save the handled (or original) coverage report to the file
+        with open(report_file, "a") as f:
+            f.write(handled_report)
+        
+        logging.info(f"Code coverage report saved to {report_file}")
+
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error generating coverage report for {test_file}: {e}")
 
  def ensure_coverage_installed(self, language: str):
        """
