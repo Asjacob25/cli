@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from requests.exceptions import RequestException
 from typing import List, Optional, Dict, Any
-import coverage
 
 # Set up logging
 logging.basicConfig(
@@ -124,87 +123,72 @@ class TestGenerator:
     return related_files
 
  def get_related_test_files(self, language: str, file_name: str) -> List[str]:
-    """Identify the first related test file based on import statements or includes."""
-    related_test_files = []  # Store paths of related test files
-    target_file = Path(file_name)  # Convert file_name to a Path object here
-
-    try:
-        if language == "Python":
-            # Define the directory to search in
-            directory = Path(os.path.dirname(os.path.abspath(__file__)))
-            logging.debug(f"Searching for related test files in directory: {directory}")
-
-            # Common test file naming patterns
-            test_patterns = ["tests.py", "test.py", "test_*.py", "*_test.py"]
-            test_files = [file for pattern in test_patterns for file in directory.rglob(pattern)]
-            logging.debug(f"Test files found with patterns {test_patterns}: {[str(f) for f in test_files]}")
-
-            # Iterate through each test file to check for potential imports or related identifiers
-            for test_file in test_files:
-                try:
-                    with open(test_file, 'r') as f:
-                        for line in f:
-                            if 'import' in line or 'from ' in line:
-                                # Break down the line into parts to check against the target file name
-                                parts = line.split()
-                                for part in parts:
-                                    normalized_part = part.replace(".", "/") if "." in part else part
-
-                                    # Check if part might represent a path or filename related to `target_file`
-                                    for ext in ('.py', '.js', '.ts'):
-                                        potential_file = Path(f"{normalized_part}{ext}")
-                                        if target_file.exists() and str(target_file) in str(potential_file):
-                                            logging.info(f"Related test file found: {test_file}")
-                                            related_test_files.append(str(test_file))
-                                            break  # Exit loop upon finding the first related file
-                        if related_test_files:  # Limit to first match
-                            break
-                except Exception as e:
-                    logging.error(f"Error reading test file {test_file}: {e}")
-
-        # Limit to the first related test file (if any)
-        limited_test_files = related_test_files[:1]
-
-    except Exception as e:
-        logging.error(f"Error identifying related test files for {file_name}: {e}")
-        limited_test_files = []
-
-    return limited_test_files
+      related_test_files = []#Identify related files based on import statements or includes.
+      #print("ENTERED TEST RELATED FILES\n\n")
+      try:
+          if (language=="Python"):
+              directory = Path(os.path.dirname(os.path.abspath(__file__)))
+              #need to look at the directory for python test files
+              #print("this is the directory"+str(directory)+"\n")
+              #just going to look in current directory
+              test_files =  list(directory.rglob("tests.py")) + list(directory.rglob("test.py")) + list(directory.rglob("test_*.py")) + list(directory.rglob("*_test.py"))
+              #print("\n related TEST FILES HERE "+ ', '.join(str(file) for file in test_files) + "\n")
+              #print("print statement above\n")
+              for file in test_files:
+                  with open(file, 'r') as f:
+                      for line in f:
+                          if 'from ' in line:
+                              #going to now check each word in the line
+                              parts = line.split()
+                              for part in parts:
+                                  for part in parts:
+                                      # Check for file extensions
+                                      if len(part) > 1 and part[0]=="." and part[1] != ".":
+                                          path = part.replace(".","")
+                                          for ext in ('.py', '.js', '.ts'):
+                                              potential_file = f"{path}{ext}"
+                                              stringPotentialFile = str(potential_file)
+                                              #print("result of "+ str(file_name) +" in "+ stringPotentialFile +"  is this "+ str(stringPotentialFile in str(file_name))+ "")
+                                              #print(str(Path(potential_file).exists()) + "<-- this is saying whether it exsists and this is potential_file "+str(potential_file)+"\n")
+                                              if (Path(file_name).exists() and (stringPotentialFile in str(file_name))):
+                                                  related_test_files.append(str(file))
+                                                  break  #
+                                      elif '.' in part:
+                                          path = part.replace(".","/")
+                                          for ext in ('.py', '.js', '.ts'):
+                                              potential_file = f"{path}{ext}"
+                                          #print(potential_file + "<-- from . \n")
+                                              stringPotentialFile = str(potential_file)
+                                              if Path(file_name).exists() and (stringPotentialFile in str(file_name)):
+                                                  related_test_files.append(str(file))
+                                                  break  #
+                                      else:
+                                          if part.endswith(('.py', '.js', '.ts')) and Path(part).exists() and ((str(file_name)) in str(part)):
+                                              related_test_files.append(str(file))
+                                          # Check for class/module names without extensions
+                                          elif part.isidentifier():  # Checks if part is a valid identifier
+                                          # Construct potential file names
+                                              base_name = part.lower()  # Assuming file names are in lowercase
+                                              for ext in ('.py', '.js', '.ts','.js'):
+                                                  potential_file = f"{base_name}{ext}"
+                                                  #print(potential_file + "<-- from regular \n")
+                                                  stringPotentialFile = str(potential_file)
+                                                  if Path(file_name).exists() and (stringPotentialFile in str(file_name)):
+                                                      related_test_files.append(file)
+                                                      break  # Found a related file, no need to check further extensions
+      except Exception as e:
+          logging.error(f"Error identifying related test files in {file_name}: {e}")
+     #print("related FILES HERE "+ ', '.join(related_files) + "\n")
+      limited_test_files = related_test_files[:1]# List
+      return limited_test_files  # List
  
- def generate_coverage_beforehand(self, test_file_path: Path, changed_file: str, language: str):
-    """Generate line coverage for the changed file before test generation."""
-    if language.lower() != 'python':
-        logging.info(f"Coverage analysis is not implemented for language {language}.")
-        return None
+ def generate_coverage_beforehand(self, test_file:Path, file_name:str, language: str):
 
-    cov = coverage.Coverage()
-    cov.start()
-
-    # Run the existing test file if it exists
-    if test_file_path.exists():
-        try:
-            # Execute the test file within the current context
-            exec(open(test_file_path).read(), globals())
-        except Exception as e:
-            logging.error(f"Error running tests in {test_file_path}: {e}")
-    else:
-        logging.info(f"No pre-existing test file found for {changed_file}")
-
-    cov.stop()
-    cov.save()
-
-    # Get the line coverage data for the changed file
-    uncovered_lines = []
-    try:
-        file_coverage = cov.analysis2(changed_file)
-        _, executed_lines, missing_lines, _ = file_coverage
-        uncovered_lines = missing_lines
-        logging.info(f"Uncovered lines for {changed_file}: {uncovered_lines}")
-    except Exception as e:
-        logging.error(f"Error analyzing coverage for {changed_file}: {e}")
-
-    # Return uncovered lines for inclusion in the prompt
-    return uncovered_lines
+       try:
+           self.generate_coverage_report(file_name,test_file,language) #generating the coverage report
+       except subprocess.CalledProcessError as e:
+           logging.error(f"Error generating the before coverage report for {test_file}: {e}")
+       logging.info("made the before test case generation  :" + str(test_file))
        
        
  
@@ -295,94 +279,84 @@ class TestGenerator:
      
 
  def create_prompt(self, file_name: str, language: str) -> Optional[str]:
-    """Create a language-specific prompt for test generation with accurate module and import names in related content."""
-    # Attempt to read the primary file's content
-    try:
-        with open(file_name, 'r') as f:
-            code_content = f.read()
-    except Exception as e:
-        logging.error(f"Error reading file {file_name}: {e}")
-        return None
+      """Create a language-specific prompt for test generation with accurate module and import names in related content."""
+      try:
+          with open(file_name, 'r') as f:
+              code_content = f.read()
+      except Exception as e:
+          logging.error(f"Error reading file {file_name}: {e}")
+          return None
 
-    # Gather related files and their content
-    related_files = self.get_related_files(language, file_name)
-    related_content = ""
-    if related_files:
-        for related_file in related_files:
-            try:
-                with open(related_file, 'r') as rf:
-                    file_content = rf.read()
-                    module_path = str(Path(related_file).with_suffix('')).replace('/', '.')
-                    import_statement = f"import {module_path}"
-                    related_content += f"\n\n// Module: {module_path}\n{import_statement}\n{file_content}"
-                    logging.info(f"Included content from related file: {related_file} as module {module_path}")
-            except Exception as e:
-                logging.error(f"Error reading related file {related_file}: {e}")
-    else:
-        logging.info(f"No related files found for {file_name}")
+      # Gather related files and embed imports in each file's content
+      related_files = self.get_related_files(language, file_name)
+      related_content = ""
 
-    # Gather related test files (using only the first one if there are multiple)
-    related_test_files = self.get_related_test_files(language, file_name)
-    related_test_content = ""
-    if related_test_files:
-        first_test_file = related_test_files[0] if related_test_files else None
-        if first_test_file:
-            try:
-                with open(first_test_file, 'r') as rf:
-                    file_content = rf.read()
-                    related_test_content += f"\n\n// Related test file: {first_test_file}\n{file_content}"
-                    logging.info(f"Included content from related test file: {first_test_file}")
-            except Exception as e:
-                logging.error(f"Error reading related test file {first_test_file}: {e}")
-        else:
-            logging.info(f"No test files found for {file_name}")
-    else:
-        logging.info(f"No related test files found for {file_name}")
+      # Log related files to confirm detection
+      if related_files:
+          logging.info(f"Related files for {file_name}: {related_files}")
+      else:
+          logging.info(f"No related files found for {file_name} to reference")
+      for related_file in related_files:
+          try:
+              with open(related_file, 'r') as rf:
+                  file_content = rf.read()
+                  
+                  # Generate the correct module path for import statements
+                  module_path = str(Path(related_file).with_suffix('')).replace('/', '.')
+                  import_statement = f"import {module_path}"
+                  
+                  # Append file content with embedded import statement
+                  related_content += f"\n\n// Module: {module_path}\n{import_statement}\n{file_content}"
+                  logging.info(f"Included content from related file: {related_file} as module {module_path}")
+          except Exception as e:
+              logging.error(f"Error reading related file {related_file}: {e}")
 
-    # Determine test framework
-    framework = self.get_test_framework(language)
+      # Gather additional context from related test files
+      
+      related_test_files = self.get_related_test_files(language, file_name)
+      related_test_content = ""
+      # Log related files to confirm detection
+      if related_test_files:
+          logging.info(f"Related Test files for {file_name}: {related_test_files}")
+      else:
+          logging.info(f"No related test files found for {file_name} to reference")
+      for related_test_file in related_test_files:
+          try:
+              with open(related_test_file, 'r') as rf:
+                  file_content = rf.read()
+                  related_test_content += f"\n\n// Related test file: {related_test_file}\n{file_content}"
+                  logging.info(f"Included content from related test file: {related_test_file}")
+          except Exception as e:
+              logging.error(f"Error reading related test file {related_test_file}: {e}")
 
-    # Generate uncovered lines information
-    uncovered_lines = self.generate_coverage_beforehand(first_test_file, file_name, language) if first_test_file else []
-    if uncovered_lines:
-        uncovered_lines_text = f"Uncovered lines: {uncovered_lines}"
-        logging.info(f"Uncovered lines for {file_name}: {uncovered_lines}")
-    else:
-        uncovered_lines_text = "All lines are covered by existing tests."
-        logging.info(f"All lines are covered for {file_name}")
+      # Add the file name at the top of the prompt
+      framework = self.get_test_framework(language)
+      prompt = f"""Generate comprehensive unit tests for the following {language} file: {file_name} using {framework}.
 
-    # Construct the prompt
-    prompt = f"""Generate unit tests for the following {language} file: {file_name} using {framework}. 
+      Requirements:
+      1. Include edge cases, normal cases, and error cases.
+      2. Use mocking where appropriate for external dependencies.
+      3. Include setup and teardown if needed.
+      4. Add descriptive test names and docstrings.
+      5. Follow {framework} best practices.
+      6. Ensure high code coverage.
+      7. Test both success and failure scenarios.
 
-    Requirements:
-    1. Prioritize covering the uncovered lines identified in the coverage report below.
-    2. Include edge cases, normal cases, and error cases.
-    3. Use mocking where appropriate for external dependencies.
-    4. Include setup and teardown if needed.
-    5. Add descriptive test names and docstrings.
-    6. Follow {framework} best practices.
-    7. Ensure high code coverage, focusing primarily on the uncovered lines.
-    8. Test both success and failure scenarios.
+      Code to test (File: {file_name}):
 
-    Code to test (File: {file_name}):
+      {code_content}
 
-    {code_content}
+      Related context:
 
-    Related context:
+      {related_content}
 
-    {related_content}
+      Related test cases:
+      {related_test_content}
 
-    Related test cases:
-    {related_test_content}
+      Generate only the test code without any explanations or notes."""
 
-    Coverage report:
-    {uncovered_lines_text}
-
-    Generate only the test code without any explanations or notes.
-    """
-
-    logging.info(f"Created prompt for {file_name} with length {len(prompt)} characters")
-    return prompt
+      logging.info(f"Created prompt for {file_name} with length {len(prompt)} characters")
+      return prompt
 
 
  def call_openai_api(self, prompt: str) -> Optional[str]:
@@ -424,7 +398,6 @@ class TestGenerator:
         return normalized_text.strip()
     except RequestException as e:
         logging.error(f"API request failed: {e}, Response: {response.text}")
-        return None
      
  def make_test_file(self, file_name: str, language: str) -> Path:
      """Save generated test cases to appropriate directory structure."""
@@ -497,16 +470,16 @@ class TestGenerator:
               
               if prompt:
                   
-                  #test_cases = self.call_openai_api(prompt)
+                  test_cases = self.call_openai_api(prompt)
                   
                   if test_cases:
                       test_cases = test_cases.replace("“", '"').replace("”", '"')
 
                       self.ensure_coverage_installed(language)
 
-                      test_file_path = self.make_test_file(file_name,language) 
+                      test_file_path = self.make_test_file(file_name,language)
 
-                      
+                      self.generate_coverage_beforehand(test_file_path,file_name,language)
                       test_file = self.save_tests_created(test_file_path,test_cases, language)
                       self.generate_coverage_report(file_name, test_file, language)
                   else:
