@@ -208,7 +208,44 @@ class TestGenerator:
         base_name = Path(file_name).stem
 
     
-        # Run tests with coverage based on language
+    # Run tests with coverage based on language
+    if language == "Python":
+        coverage_output = subprocess.run(
+            ["pytest", str(test_file), "--cov=" + str(base_name), "--cov-report=term-missing"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+            text=True
+            ).stdout
+        logging.info("initial coverage report was made")
+    elif language == "JavaScript":
+        # Example for JavaScript - replace with the specific coverage tool and command
+        coverage_output = subprocess.run(
+            ["jest", "--coverage", "--config=path/to/jest.config.js"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+            text=True
+        ).stdout
+
+        # Send the coverage report to OpenAI
+    logging.info("about to send report to openai")
+    prompt = f"""Here is the code coverage report:
+{coverage_output}
+Is there anything missing that I need to install to run this test? If yes, please respond with only the exact command to install the missing dependency. If nothing is needed, respond with NA."""
+    response = self.call_openai_api(prompt)
+    logging.info("recieved response from openai")
+        
+    if response == "NA":
+        logging.info("no need to install")
+        # Save the coverage output to the report file if no installation is needed
+        with open(report_file, "a") as f:
+            f.write(coverage_output)
+        logging.info(f"Code coverage report saved to {report_file}")
+    elif response:
+        logging.info(f"going to install, this was the response: {res}")
+        # Install the missing package(s) and re-run the coverage report
+        subprocess.run(response, shell=True, check=True)
         if language == "Python":
             coverage_output = subprocess.run(
                 ["pytest", str(test_file), "--cov=" + str(base_name), "--cov-report=term-missing"],
@@ -217,9 +254,7 @@ class TestGenerator:
                 check=True,
                 text=True
             ).stdout
-            logging.info("initial coverage report was made")
         elif language == "JavaScript":
-            # Example for JavaScript - replace with the specific coverage tool and command
             coverage_output = subprocess.run(
                 ["jest", "--coverage", "--config=path/to/jest.config.js"],
                 stdout=subprocess.PIPE,
@@ -228,45 +263,10 @@ class TestGenerator:
                 text=True
             ).stdout
 
-        # Send the coverage report to OpenAI
-        logging.info("about to send report to openai")
-        prompt = f"""Here is the code coverage report:
-{coverage_output}
-Is there anything missing that I need to install to run this test? If yes, please respond with only the exact command to install the missing dependency. If nothing is needed, respond with NA."""
-        response = self.call_openai_api(prompt)
-        logging.info("recieved response from openai")
-        
-        if response == "NA":
-            logging.info("no need to install")
-            # Save the coverage output to the report file if no installation is needed
-            with open(report_file, "a") as f:
-                f.write(coverage_output)
-            logging.info(f"Code coverage report saved to {report_file}")
-        elif response:
-            logging.info(f"going to install, this was the response: {res}")
-            # Install the missing package(s) and re-run the coverage report
-            subprocess.run(response, shell=True, check=True)
-            if language == "Python":
-                coverage_output = subprocess.run(
-                    ["pytest", str(test_file), "--cov=" + str(base_name), "--cov-report=term-missing"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=True,
-                    text=True
-                ).stdout
-            elif language == "JavaScript":
-                coverage_output = subprocess.run(
-                    ["jest", "--coverage", "--config=path/to/jest.config.js"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    check=True,
-                    text=True
-                ).stdout
-
             # Save the updated coverage output to the report file
-            with open(report_file, "a") as f:
-                f.write(coverage_output)
-            logging.info(f"Code coverage report saved to {report_file} after installing missing dependencies.")
+        with open(report_file, "a") as f:
+            f.write(coverage_output)
+        logging.info(f"Code coverage report saved to {report_file} after installing missing dependencies.")
 
 
  def ensure_coverage_installed(self, language: str):
