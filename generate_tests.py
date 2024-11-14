@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 from requests.exceptions import RequestException
 from typing import List, Optional, Dict, Any
-import re
 
 # Set up logging
 logging.basicConfig(
@@ -193,93 +192,75 @@ class TestGenerator:
        
        
  
- def install_missing_modules(modules):
-    """Install missing modules based on the names provided."""
-    for module in modules:
-        try:
-            print(f"Installing missing module: {module}")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", module])
-            print(f"Module {module} installed successfully.")
-        except subprocess.CalledProcessError as e:
-            print(f"Error installing module {module}: {e}")
-            raise
-
- def run_coverage_report(test_file, base_name, language):
-    """Run pytest (for Python) or other coverage tool and capture output."""
-    try:
-        if language == "Python":
-            result = subprocess.run(
-                ["pytest", str(test_file), "--cov=" + str(base_name), "--cov-report=term-missing"],
-                capture_output=True, text=True
-            )
-            return result.stdout
-        elif language == "JavaScript":
-            # Example for JavaScript - replace with the specific coverage tool and command
-            result = subprocess.run(
-                ["jest", "--coverage", "--config=path/to/jest.config.js"],
-                capture_output=True, text=True
-            )
-            return result.stdout
-        # Add more cases for other languages here
-        else:
-            raise ValueError(f"Unsupported language: {language}")
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Error running coverage report: {e}")
-        raise
-
- def extract_missing_modules(coverage_report):
-    """Extract module names that caused 'ModuleNotFoundError' from the coverage report."""
-    missing_modules = []
-    # Look for "ModuleNotFoundError" and capture the module name from the error message
-    pattern = re.compile(r"ModuleNotFoundError: No module named '([^']+)'")
-    matches = pattern.findall(coverage_report)
-    missing_modules.extend(matches)
-    return missing_modules
-
- def handle_coverage_report(coverage_report):
-    """Handle the coverage report: Install missing dependencies if needed and rerun coverage."""
-    missing_modules = extract_missing_modules(coverage_report)
-    
-    if missing_modules:
-        print("Missing modules detected:", missing_modules)
-        install_missing_modules(missing_modules)
-        print("Rerunning the coverage report after installing missing modules...")
-        return run_coverage_report()
-    else:
-        # If no missing modules, return the original coverage report
-        return coverage_report
-
  def generate_coverage_report(self, file_name: str, test_file: Path, language: str):
-    """Generate a code coverage report and save it as a text file."""
+    """Generate a code coverage report, send it to OpenAI for analysis, and save it as a text file."""
     report_file = test_file.parent / f"{test_file.stem}_coverage_report.txt"
-    
-    # Get base name based on language
     if language == "Python":
         # Get the full path of the base file and replace slashes with dots
         current_path = str(os.path.dirname(os.path.abspath(__file__))) + "/"
         base_name = Path(file_name).resolve()
-
         base_name = str(base_name).replace(current_path, '').replace('/', '.')
-
-        base_name = base_name.replace(file_name, "").replace(".py", "")  # If base_name should still have "."
-        if not base_name:
+        base_name = base_name.replace(file_name, "").replace(".py", "")
+        if base_name == "":
             base_name = "."
     else:
-        # For other languages, the base_name remains the stem of the file
         base_name = Path(file_name).stem
 
     try:
-        # Run the coverage report and get the output
-        coverage_report = run_coverage_report(test_file, base_name, language)
+        # Run tests with coverage based on language
+        if language == "Python":
+            coverage_output = subprocess.run(
+                ["pytest", str(test_file), "--cov=" + str(base_name), "--cov-report=term-missing"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+                text=True
+            ).stdout
+        elif language == "JavaScript":
+            # Example for JavaScript - replace with the specific coverage tool and command
+            coverage_output = subprocess.run(
+                ["jest", "--coverage", "--config=path/to/jest.config.js"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+                text=True
+            ).stdout
 
-        # Handle missing modules and rerun coverage if necessary
-        handled_report = handle_coverage_report(coverage_report)
-
-        # Save the handled (or original) coverage report to the file
-        with open(report_file, "a") as f:
-            f.write(handled_report)
+        # Send the coverage report to OpenAI
+        prompt = f"""Here is the code coverage report:
+{coverage_output}
+Is there anything missing that I need to install to run this test? If yes, please respond with only the exact command to install the missing dependency. If nothing is needed, respond with NA."""
+        response = self.call_openai_api(prompt)
         
-        logging.info(f"Code coverage report saved to {report_file}")
+        if response == "NA":
+            # Save the coverage output to the report file if no installation is needed
+            with open(report_file, "a") as f:
+                f.write(coverage_output)
+            logging.info(f"Code coverage report saved to {report_file}")
+        elif response:
+            # Install the missing package(s) and re-run the coverage report
+            subprocess.run(response, shell=True, check=True)
+            if language == "Python":
+                coverage_output = subprocess.run(
+                    ["pytest", str(test_file), "--cov=" + str(base_name), "--cov-report=term-missing"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                    text=True
+                ).stdout
+            elif language == "JavaScript":
+                coverage_output = subprocess.run(
+                    ["jest", "--coverage", "--config=path/to/jest.config.js"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                    text=True
+                ).stdout
+
+            # Save the updated coverage output to the report file
+            with open(report_file, "a") as f:
+                f.write(coverage_output)
+            logging.info(f"Code coverage report saved to {report_file} after installing missing dependencies.")
 
     except subprocess.CalledProcessError as e:
         logging.error(f"Error generating coverage report for {test_file}: {e}")
