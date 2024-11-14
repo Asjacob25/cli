@@ -34,7 +34,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install requests pytest
-          pip install importlib-metadata
       - name: Create tests directory
         run: mkdir -p generated_tests
       - name: Detect changed files
