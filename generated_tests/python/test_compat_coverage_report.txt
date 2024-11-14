@@ -1,0 +1,42 @@
+============================= test session starts ==============================
+platform linux -- Python 3.8.18, pytest-8.3.3, pluggy-1.5.0
+rootdir: /home/runner/work/cli/cli
+configfile: pytest.ini
+plugins: cov-5.0.0
+collected 0 items
+WARNING: Failed to generate report: No data to report.
+
+
+
+---------- coverage: platform linux, python 3.8.18-final-0 -----------
+
+============================ no tests ran in 0.03s =============================
+============================= test session starts ==============================
+platform linux -- Python 3.8.18, pytest-8.3.3, pluggy-1.5.0
+rootdir: /home/runner/work/cli/cli
+configfile: pytest.ini
+plugins: cov-5.0.0
+collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+____________ ERROR collecting generated_tests/python/test_compat.py ____________
+ImportError while importing test module '/home/runner/work/cli/cli/generated_tests/python/test_compat.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+generated_tests/python/test_compat.py:19: in <module>
+    import importlib_metadata
+E   ModuleNotFoundError: No module named 'importlib_metadata'
+
+---------- coverage: platform linux, python 3.8.18-final-0 -----------
+Name               Stmts   Miss  Cover   Missing
+------------------------------------------------
+httpie/compat.py      56     39    30%   22-67, 76, 80-83, 87-101, 111-113
+------------------------------------------------
+TOTAL                 56     39    30%
+
+=========================== short test summary info ============================
+ERROR generated_tests/python/test_compat.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.27s ===============================
