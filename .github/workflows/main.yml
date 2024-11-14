@@ -52,8 +52,8 @@ jobs:
         if: env.CHANGED_FILES != ''
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: "gpt-4-turbo-preview"  # Set default model
-          OPENAI_MAX_TOKENS: "2000"  # Set default max tokens
+          OPENAI_MODEL: "o1-mini"  # Set default model
+          OPENAI_MAX_TOKENS: "6000"  # Set default max tokens
         run: |
           echo "Generating tests for: ${{ env.CHANGED_FILES }}"
           python generate_tests.py "${{ env.CHANGED_FILES }}"
