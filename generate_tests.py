@@ -207,7 +207,7 @@ class TestGenerator:
     else:
         base_name = Path(file_name).stem
 
-    try:
+    
         # Run tests with coverage based on language
         if language == "Python":
             coverage_output = subprocess.run(
@@ -268,8 +268,6 @@ Is there anything missing that I need to install to run this test? If yes, pleas
                 f.write(coverage_output)
             logging.info(f"Code coverage report saved to {report_file} after installing missing dependencies.")
 
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Error generating coverage report for {test_file}: {e}")
 
  def ensure_coverage_installed(self, language: str):
        """
