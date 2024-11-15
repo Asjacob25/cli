@@ -1,0 +1,173 @@
+============================= test session starts ==============================
+platform linux -- Python 3.8.18, pytest-8.3.3, pluggy-1.5.0
+rootdir: /home/runner/work/cli/cli
+configfile: pytest.ini
+plugins: cov-5.0.0
+collected 0 items
+WARNING: Failed to generate report: No data to report.
+
+
+
+---------- coverage: platform linux, python 3.8.18-final-0 -----------
+
+============================ no tests ran in 0.03s =============================
+============================= test session starts ==============================
+platform linux -- Python 3.8.18, pytest-8.3.3, pluggy-1.5.0
+rootdir: /home/runner/work/cli/cli
+configfile: pytest.ini
+plugins: cov-5.0.0
+collected 21 items
+
+generated_tests/python/test_compat.py FF..F.......F..Fs...F              [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_is_windows[win32-True] __________________________
+
+platform = 'win32', expected = True
+
+    @pytest.mark.parametrize("platform, expected", [
+        ("win32", True),
+        ("windows", True),
+        ("linux", False),
+        ("darwin", False),
+    ])
+    def test_is_windows(platform, expected):
+        """
+        Test the is_windows variable correctly identifies Windows platforms.
+        """
+        with mock.patch("sys.platform", platform):
+            from httpie.compat import is_windows
+>           assert is_windows == expected
+E           assert False == True
+
+generated_tests/python/test_compat.py:35: AssertionError
+________________________ test_is_windows[windows-True] _________________________
+
+platform = 'windows', expected = True
+
+    @pytest.mark.parametrize("platform, expected", [
+        ("win32", True),
+        ("windows", True),
+        ("linux", False),
+        ("darwin", False),
+    ])
+    def test_is_windows(platform, expected):
+        """
+        Test the is_windows variable correctly identifies Windows platforms.
+        """
+        with mock.patch("sys.platform", platform):
+            from httpie.compat import is_windows
+>           assert is_windows == expected
+E           assert False == True
+
+generated_tests/python/test_compat.py:35: AssertionError
+__________________________ test_is_frozen[True-True] ___________________________
+
+frozen = True, expected = True
+
+    @pytest.mark.parametrize("frozen, expected", [
+        (True, True),
+        (False, False),
+        (None, False),
+    ])
+    def test_is_frozen(frozen, expected):
+        """
+        Test the is_frozen variable correctly identifies frozen applications.
+        """
+        with mock.patch.dict("sys.__dict__", {"frozen": frozen} if frozen is not None else {}):
+            from httpie.compat import is_frozen
+>           assert is_frozen == expected
+E           assert False == True
+
+generated_tests/python/test_compat.py:49: AssertionError
+____________________ test_get_dist_name_metadata_not_found _____________________
+
+mock_entry_point_without_dist = <MagicMock id='140203046834624'>
+
+    def test_get_dist_name_metadata_not_found(mock_entry_point_without_dist):
+        """
+        Test get_dist_name returns None when the package metadata is not found.
+        """
+>       with patch("httpie.compat.importlib_metadata.metadata", side_effect=importlib_metadata.PackageNotFoundError):
+E       NameError: name 'importlib_metadata' is not defined
+
+generated_tests/python/test_compat.py:138: NameError
+_________ test_ensure_default_certs_loaded_without_load_default_certs __________
+
+    def test_ensure_default_certs_loaded_without_load_default_certs():
+        """
+        Test ensure_default_certs_loaded does nothing when ssl_context lacks load_default_certs.
+        """
+        mock_ssl_context = MagicMock(spec=SSLContext)
+        mock_ssl_context.get_ca_certs.return_value = []
+        del mock_ssl_context.load_default_certs
+    
+        ensure_default_certs_loaded(mock_ssl_context)
+    
+>       mock_ssl_context.get_ca_certs.assert_called_once()
+
+generated_tests/python/test_compat.py:185: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <MagicMock name='mock.get_ca_certs' id='140203046956912'>
+
+    def assert_called_once(self):
+        """assert that the mock was called only once.
+        """
+        if not self.call_count == 1:
+            msg = ("Expected '%s' to have been called once. Called %s times.%s"
+                   % (self._mock_name or 'mock',
+                      self.call_count,
+                      self._calls_repr()))
+>           raise AssertionError(msg)
+E           AssertionError: Expected 'get_ca_certs' to have been called once. Called 0 times.
+
+/opt/hostedtoolcache/Python/3.8.18/x64/lib/python3.8/unittest/mock.py:892: AssertionError
+________ test_importlib_metadata_import[py_version1-importlib_metadata] ________
+
+py_version = (3, 7), expected_import = 'importlib_metadata'
+
+    @pytest.mark.parametrize("py_version, expected_import", [
+        ((3, 8), "importlib.metadata"),
+        ((3, 7), "importlib_metadata"),
+    ])
+    def test_importlib_metadata_import(py_version, expected_import):
+        """
+        Test that importlib_metadata is correctly imported based on Python version.
+        """
+        with mock.patch("sys.version_info", py_version):
+            if py_version >= (3, 8):
+                from httpie.compat import importlib_metadata
+                assert importlib_metadata.__name__ == "importlib.metadata"
+            else:
+                from httpie.compat import importlib_metadata
+>               assert importlib_metadata.__name__ == "importlib_metadata"
+E               AssertionError: assert 'importlib.metadata' == 'importlib_metadata'
+E                 
+E                 - importlib_metadata
+E                 ?          ^
+E                 + importlib.metadata
+E                 ?          ^
+
+generated_tests/python/test_compat.py:249: AssertionError
+
+---------- coverage: platform linux, python 3.8.18-final-0 -----------
+Name               Stmts   Miss  Cover   Missing
+------------------------------------------------
+httpie/compat.py      56     23    59%   22-67, 76, 98-99
+------------------------------------------------
+TOTAL                 56     23    59%
+
+=========================== short test summary info ============================
+FAILED generated_tests/python/test_compat.py::test_is_windows[win32-True] - assert False == True
+FAILED generated_tests/python/test_compat.py::test_is_windows[windows-True] - assert False == True
+FAILED generated_tests/python/test_compat.py::test_is_frozen[True-True] - assert False == True
+FAILED generated_tests/python/test_compat.py::test_get_dist_name_metadata_not_found - NameError: name 'importlib_metadata' is not defined
+FAILED generated_tests/python/test_compat.py::test_ensure_default_certs_loaded_without_load_default_certs - AssertionError: Expected 'get_ca_certs' to have been called once. Called 0 times.
+FAILED generated_tests/python/test_compat.py::test_importlib_metadata_import[py_version1-importlib_metadata] - AssertionError: assert 'importlib.metadata' == 'importlib_metadata'
+  
+  - importlib_metadata
+  ?          ^
+  + importlib.metadata
+  ?          ^
+=================== 6 failed, 14 passed, 1 skipped in 0.24s ====================
